@@ -3,10 +3,11 @@ package unionpay
 import (
 	"time"
 	"strconv"
+	"errors"
 )
 
 // TradeQuery 查询订单
-func (this *UnionPay) TradeQuery(orderId string, queryId string) (queryData map[string]string, err error) {
+func (this *UnionPay) TradeQuery(orderId string, queryId string) (result UnionPayTradeQueryResponse, err error) {
 	// 选择对应环境的url
 	tradeUrl := QUERY_SANDBOX_URL
 	if this.isProduction {
@@ -31,22 +32,34 @@ func (this *UnionPay) TradeQuery(orderId string, queryId string) (queryData map[
 		params[k] = v
 	}
 
-	queryData, err = this.SendRequest("POST", tradeUrl, params)
+	queryData, err := this.SendRequest("POST", tradeUrl, params)
+	if err != nil {
+		return
+	}
+
 
 	// 校验返回数据
 	validate, err := Validate(queryData)
 	// 校验失败则重置queryData
 	if err != nil || !validate {
-		queryData = map[string]string{}
+		err = errors.New("validate fail")
 		return
 	}
+
+	// 转换map为对应结构体
+	responseData := &UnionPayTradeQueryResponse{}
+	err = ConvertMapToStruct(queryData, responseData)
+	if err != nil {
+		return
+	}
+	result = *responseData
 
 	return
 }
 
 // TradeRefund 退款
 func (this *UnionPay) TradeRefund(OutTradeNo, TradeNo string, totalAmount, refundAmount int,
-	refundReason, outRequestNo string) (refundResult map[string]string, err error) {
+	refundReason, outRequestNo string) (result UnionPayTradeRefundResponse, err error) {
 	// 选择对应环境的url
 	refundUrl := TRANS_SANDBOX_URL
 	if this.isProduction {
@@ -72,15 +85,23 @@ func (this *UnionPay) TradeRefund(OutTradeNo, TradeNo string, totalAmount, refun
 		params[k] = v
 	}
 
-	refundResult, err = this.SendRequest("POST", refundUrl, params)
+	refundResult, err := this.SendRequest("POST", refundUrl, params)
 
 	// 校验返回数据
 	validate, err := Validate(refundResult)
 	// 校验失败则重置queryData
 	if err != nil || !validate {
-		refundResult = map[string]string{}
+		err = errors.New("validate fail")
 		return
 	}
+
+	// 转换map为对应结构体
+	responseData := &UnionPayTradeRefundResponse{}
+	err = ConvertMapToStruct(refundResult, responseData)
+	if err != nil {
+		return
+	}
+	result = *responseData
 	return
 }
 
